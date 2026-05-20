@@ -1,0 +1,22 @@
+name: release-napi
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  napi-publish:
+    uses: ./.github/workflows/napi.yml
+    with:
+      crate-dir: crates/whittle-napi
+      app-name: whittle
+      run-publish: true
+    secrets: inherit

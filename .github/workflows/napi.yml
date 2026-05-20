@@ -1,0 +1,280 @@
+name: napi (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      crate-dir:
+        description: Path to the napi crate
+        required: true
+        type: string
+      app-name:
+        description: napi binaryName (matches package.json `napi.binaryName`)
+        required: true
+        type: string
+      run-publish:
+        description: When true, runs the publish job after build (release flow).
+        required: false
+        type: boolean
+        default: false
+
+env:
+  MACOSX_DEPLOYMENT_TARGET: "10.13"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - host: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            build: npx napi build --platform --release --target x86_64-unknown-linux-gnu --use-napi-cross
+
+          - host: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            build: npx napi build --platform --release --target x86_64-unknown-linux-musl -x
+
+          - host: ubuntu-24.04
+            target: aarch64-unknown-linux-gnu
+            build: npx napi build --platform --release --target aarch64-unknown-linux-gnu --use-napi-cross
+
+          - host: ubuntu-24.04
+            target: aarch64-unknown-linux-musl
+            build: npx napi build --platform --release --target aarch64-unknown-linux-musl -x
+
+          - host: macos-15
+            target: x86_64-apple-darwin
+            build: npx napi build --platform --release --target x86_64-apple-darwin
+
+          - host: macos-15
+            target: aarch64-apple-darwin
+            build: npx napi build --platform --release --target aarch64-apple-darwin
+
+          - host: windows-2025
+            target: x86_64-pc-windows-msvc
+            build: npx napi build --platform --release --target x86_64-pc-windows-msvc
+
+    name: build - ${{ matrix.settings.target }}
+    runs-on: ${{ matrix.settings.host }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.crate-dir }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: ${{ inputs.crate-dir }}/.nvmrc
+          cache: npm
+          cache-dependency-path: ${{ inputs.crate-dir }}/package-lock.json
+
+      - name: Install Rust
+        run: rustup update stable && rustup default stable && rustup target add ${{ matrix.settings.target }}
+
+      - name: Rust cache
+        if: ${{ !inputs.run-publish }}
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: napi-${{ inputs.app-name }}-${{ matrix.settings.target }}
+
+      - name: Install zig (musl targets)
+        if: contains(matrix.settings.target, 'musl')
+        uses: mlugg/setup-zig@v2
+
+      - name: Install cargo-zigbuild (musl targets)
+        if: contains(matrix.settings.target, 'musl')
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: ${{ matrix.settings.build }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: bindings-${{ inputs.app-name }}-${{ matrix.settings.target }}
+          path: ${{ inputs.crate-dir }}/${{ inputs.app-name }}.*.node
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload JS loader (target-agnostic)
+        if: matrix.settings.target == 'x86_64-unknown-linux-gnu'
+        uses: actions/upload-artifact@v7
+        with:
+          name: js-loader-${{ inputs.app-name }}
+          path: |
+            ${{ inputs.crate-dir }}/index.js
+            ${{ inputs.crate-dir }}/index.d.ts
+          if-no-files-found: error
+          retention-days: 1
+
+  test-native:
+    if: ${{ !inputs.run-publish }}
+    name: test - ${{ matrix.settings.target }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - host: macos-15
+            target: x86_64-apple-darwin
+            architecture: x64
+
+          - host: macos-15
+            target: aarch64-apple-darwin
+            architecture: arm64
+
+          - host: windows-2025
+            target: x86_64-pc-windows-msvc
+            architecture: x64
+
+    runs-on: ${{ matrix.settings.host }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.crate-dir }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: ${{ inputs.crate-dir }}/.nvmrc
+          architecture: ${{ matrix.settings.architecture }}
+
+      - name: Download artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: bindings-${{ inputs.app-name }}-${{ matrix.settings.target }}
+          path: ${{ inputs.crate-dir }}
+
+      - name: Run tests
+        run: node test.mjs
+
+  test-linux:
+    if: ${{ !inputs.run-publish }}
+    name: test - ${{ matrix.target }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-gnu
+          - aarch64-unknown-linux-musl
+
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Download artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: bindings-${{ inputs.app-name }}-${{ matrix.target }}
+          path: ${{ inputs.crate-dir }}
+
+      - name: Set up QEMU (arm64)
+        if: contains(matrix.target, 'aarch64')
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
+      - name: Test (glibc)
+        if: contains(matrix.target, 'gnu')
+        env:
+          DOCKER_PLATFORM: ${{ contains(matrix.target, 'aarch64') && 'linux/arm64' || 'linux/amd64' }}
+          CRATE_DIR: ${{ inputs.crate-dir }}
+        run: |
+          docker run --rm \
+            --platform "$DOCKER_PLATFORM" \
+            -v "$GITHUB_WORKSPACE":/work \
+            -w "/work/$CRATE_DIR" \
+            node:lts-slim \
+            node test.mjs
+
+      - name: Test (musl)
+        if: contains(matrix.target, 'musl')
+        env:
+          DOCKER_PLATFORM: ${{ contains(matrix.target, 'aarch64') && 'linux/arm64' || 'linux/amd64' }}
+          CRATE_DIR: ${{ inputs.crate-dir }}
+        run: |
+          docker run --rm \
+            --platform "$DOCKER_PLATFORM" \
+            -v "$GITHUB_WORKSPACE":/work \
+            -w "/work/$CRATE_DIR" \
+            node:lts-alpine \
+            node test.mjs
+
+  publish:
+    if: ${{ inputs.run-publish }}
+    name: publish
+    needs: build
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: ${{ inputs.crate-dir }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: ${{ inputs.crate-dir }}/.nvmrc
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create npm dirs
+        run: npx napi create-npm-dirs
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ inputs.crate-dir }}/artifacts
+          pattern: bindings-${{ inputs.app-name }}-*
+
+      - name: Move artifacts
+        run: npx napi artifacts --output-dir artifacts
+
+      - name: Download JS loader
+        uses: actions/download-artifact@v8
+        with:
+          name: js-loader-${{ inputs.app-name }}
+          path: ${{ inputs.crate-dir }}
+
+      - name: Copy LICENSE
+        run: cp ../../LICENSE.md .
+
+      - name: Determine npm tag
+        id: tag
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "$VERSION" == *-* ]]; then
+            TAG=${VERSION#*-}
+            TAG=${TAG%%.*}
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish
+        env:
+          NPM_TAG: ${{ steps.tag.outputs.tag }}
+        run: npm publish --access public --provenance --tag "$NPM_TAG"

@@ -1,0 +1,17 @@
+- id: whittle-fix
+  name: whittle (auto-normalize commit subject)
+  description: Apply normalization transforms then validate the commit message.
+  entry: whittle fix
+  language: rust
+  stages: [commit-msg]
+  pass_filenames: true
+  minimum_pre_commit_version: "2.21.0"
+
+- id: whittle-check
+  name: whittle (validate commit subject only)
+  description: Validate the commit message without modifying it.
+  entry: whittle check
+  language: rust
+  stages: [commit-msg]
+  pass_filenames: true
+  minimum_pre_commit_version: "2.21.0"

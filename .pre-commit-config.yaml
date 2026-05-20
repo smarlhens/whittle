@@ -1,0 +1,50 @@
+# TODO: migrate to prek.toml once Renovate ships native prek manager
+# See: https://github.com/renovatebot/renovate/issues/41683
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: "v6.0.0"
+    hooks:
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: fix-byte-order-marker
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: "v1.7.12"
+    hooks:
+      - id: actionlint
+
+  - repo: local
+    hooks:
+      - id: fmt
+        name: cargo fmt
+        description: Check Rust formatting.
+        entry: cargo fmt --all -- --check
+        language: rust
+        types: [rust]
+        pass_filenames: false
+      - id: cargo-check
+        name: cargo check
+        description: Check the workspace for errors.
+        entry: cargo check --workspace --all-targets
+        language: rust
+        types: [rust]
+        pass_filenames: false
+      - id: clippy
+        name: cargo clippy
+        description: Lint the workspace.
+        entry: cargo clippy --workspace --all-targets -- -D warnings
+        language: rust
+        types: [rust]
+        pass_filenames: false
+      - id: whittle-fix
+        name: whittle (auto-normalize commit subject)
+        description: Dogfood our own commit-msg normalizer.
+        entry: cargo run --quiet --release -p whittle --bin whittle -- fix
+        language: rust
+        stages: [commit-msg]

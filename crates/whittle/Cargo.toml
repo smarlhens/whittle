@@ -1,0 +1,34 @@
+[package]
+name = "whittle"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Lint and auto-normalize Conventional Commit subjects via pre-commit/prek/husky/lefthook."
+readme = "../../README.md"
+keywords = ["git", "conventional-commits", "pre-commit", "commit-msg", "lint"]
+categories = ["command-line-utilities", "development-tools"]
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "whittle"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+git-conventional.workspace = true
+regex.workspace = true
+serde.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+assert_cmd = "2.2.2"
+predicates = "3.1.4"
+tempfile = "3.27.0"
+
+[lints]
+workspace = true
