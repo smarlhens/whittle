@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "rust",
+  "bump-minor-pre-major": true,
+  "include-component-in-tag": false,
+  "separate-pull-requests": false,
+  "pull-request-title-pattern": "chore: release ${version}",
+  "changelog-sections": [
+    { "type": "feat", "section": "Features", "hidden": false },
+    { "type": "fix", "section": "Bug Fixes", "hidden": false },
+    { "type": "perf", "section": "Performance Improvements", "hidden": false },
+    { "type": "refactor", "section": "Code Refactoring", "hidden": false },
+    { "type": "docs", "section": "Documentation", "hidden": false },
+    { "type": "test", "section": "Tests", "hidden": false },
+    { "type": "build", "section": "Build System", "hidden": false },
+    { "type": "ci", "section": "Continuous Integration", "hidden": false },
+    { "type": "chore", "section": "Chores", "hidden": false },
+    { "type": "revert", "section": "Reverts", "hidden": false }
+  ],
+  "packages": {
+    "crates/whittle": {
+      "package-name": "whittle",
+      "changelog-path": "CHANGELOG.md"
+    },
+    "crates/whittle-napi": {
+      "package-name": "@smarlhens/whittle",
+      "skip-github-release": true,
+      "extra-files": [
+        { "type": "json", "path": "package.json", "jsonpath": "$.version" }
+      ]
+    }
+  },
+  "plugins": [
+    {
+      "type": "linked-versions",
+      "components": ["whittle", "@smarlhens/whittle"]
+    },
+    {
+      "type": "cargo-workspace",
+      "updateAllPackages": true,
+      "merge": true
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "name": "@smarlhens/whittle",
+  "version": "0.1.0",
+  "description": "Lint and auto-normalize Conventional Commit subjects via pre-commit/prek/husky/lefthook.",
+  "keywords": [
+    "cli",
+    "commit-msg",
+    "conventional-commits",
+    "format",
+    "git",
+    "husky",
+    "lefthook",
+    "lint",
+    "napi",
+    "node",
+    "nodejs",
+    "pre-commit",
+    "prek",
+    "rust"
+  ],
+  "license": "BlueOak-1.0.0",
+  "author": "Samuel MARLHENS <samuel.marlhens@proton.me>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smarlhens/whittle.git"
+  },
+  "homepage": "https://github.com/smarlhens/whittle#readme",
+  "bugs": "https://github.com/smarlhens/whittle/issues",
+  "bin": {
+    "whittle": "bin/whittle.js"
+  },
+  "files": [
+    "bin",
+    "index.d.ts",
+    "index.js"
+  ],
+  "main": "index.js",
+  "types": "index.d.ts",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "artifacts": "napi artifacts",
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm --no-gh-release",
+    "version": "napi version"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "3.6.2"
+  },
+  "napi": {
+    "binaryName": "whittle",
+    "targets": [
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-unknown-linux-musl",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-pc-windows-msvc"
+    ]
+  },
+  "engines": {
+    "node": "^22.13.0 || ^24.0.0 || ^25.0.0 || >=26.0.0",
+    "npm": ">=10.9.2"
+  }
+}

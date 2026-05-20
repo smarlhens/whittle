@@ -1,0 +1,25 @@
+[package]
+name = "whittle-napi"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "NAPI-RS bindings for whittle (Conventional Commit subject linter)."
+
+[lib]
+crate-type = ["cdylib"]
+
+[package.metadata.dist]
+dist = false
+
+[dependencies]
+napi = { workspace = true }
+napi-derive = { workspace = true }
+whittle = { path = "../whittle" }
+
+[build-dependencies]
+napi-build = { workspace = true }
+
+[lints]
+workspace = true

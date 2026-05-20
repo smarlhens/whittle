@@ -1,0 +1,54 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+edition = "2024"
+authors = ["Samuel MARLHENS <samuel.marlhens@proton.me>"]
+license = "BlueOak-1.0.0"
+repository = "https://github.com/smarlhens/whittle"
+
+[workspace.lints.clippy]
+pedantic = "deny"
+dbg_macro = "deny"
+empty_structs_with_brackets = "deny"
+float_cmp_const = "deny"
+if_then_some_else_none = "deny"
+same_name_method = "deny"
+tests_outside_test_module = "deny"
+unseparated_literal_suffix = "deny"
+unwrap_used = "deny"
+
+[workspace.dependencies]
+anyhow = "1.0.102"
+clap = { version = "4.6.1", features = ["derive"] }
+git-conventional = "1.1.0"
+regex = "1.12.3"
+serde = { version = "1.0.228", features = ["derive"] }
+toml = "1.1.2"
+napi = { version = "3.9.0", default-features = false, features = ["napi9"] }
+napi-derive = "3.5.6"
+napi-build = "2.3.2"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[workspace.metadata.dist]
+cargo-dist-version = "0.32.0"
+ci = "github"
+installers = ["shell", "powershell"]
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+  "aarch64-unknown-linux-musl",
+  "x86_64-apple-darwin",
+  "aarch64-apple-darwin",
+  "x86_64-pc-windows-msvc",
+]
+packages = ["whittle"]
+pr-run-mode = "skip"
+github-release = "auto"
