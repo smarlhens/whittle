@@ -73,10 +73,10 @@ Out of the box, `whittle-fix` applies these transforms to the commit subject:
 | Component | Transform |
 |-----------|-----------|
 | type | lowercase |
-| scope | lowercase, `/` → `-` |
-| description | lowercase, `and` → `&`, strip `/ \ [ ] { }`, strip standalone dots (keep version dots like `1.2.3`), strip trailing dot, collapse whitespace |
+| scope | lowercase, `/` → `-`, `\` → `-` |
+| description | lowercase, `and` → `&`, normalize smart quotes (`“ ” ‘ ’` → `" '`), em/en dashes (`— –`) → `-`, collapse runs of `!` or `?`, strip `/ \ [ ] { }`, strip standalone dots (keep version dots like `1.2.3`), strip trailing dot, collapse whitespace |
 | body | dropped |
-| footers | dropped (incl. `Co-Authored-By`) |
+| footers | dropped (denies `Co-Authored-By` and `Co-authored-by` by default) |
 
 Validation rules:
 
@@ -99,7 +99,10 @@ Example `whittle.toml` that mirrors the defaults:
 ```toml
 [scope]
 lowercase = true
-replace = [{ from = "/", to = "-" }]
+replace = [
+  { from = "/",  to = "-" },
+  { from = "\\", to = "-" },
+]
 
 [description]
 lowercase = true
@@ -107,7 +110,17 @@ collapse_whitespace = true
 trailing_dot = "strip"             # keep | strip
 strip_chars = ["/", "\\", "[", "]", "{", "}"]
 internal_dots = "keep_in_numbers"  # all | none | keep_in_numbers
-replace = [{ from = '\band\b', to = "&", regex = true }]
+replace = [
+  { from = '\band\b', to = "&", regex = true },
+  { from = "“",  to = "\"" },             # “ → "
+  { from = "”",  to = "\"" },             # ” → "
+  { from = "‘",  to = "'" },              # ‘ → '
+  { from = "’",  to = "'" },              # ’ → '
+  { from = "—",  to = "-" },              # — → -
+  { from = "–",  to = "-" },              # – → -
+  { from = "!{2,}",   to = "!", regex = true },
+  { from = '\?{2,}',  to = "?", regex = true },
+]
 
 [body]
 keep = false
