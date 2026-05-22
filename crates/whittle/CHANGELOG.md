@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.2](https://github.com/smarlhens/whittle/compare/v0.1.1...v0.1.2) (2026-05-22)
+
+
+### Bug Fixes
+
+* enable cargo dist precise builds to skip cdylib target ([383ed77](https://github.com/smarlhens/whittle/commit/383ed7761428007e26b81b0072cfd41bb7c0b63f))
+
+
+### Chores
+
+* add homepage & documentation metadata ([4138d5b](https://github.com/smarlhens/whittle/commit/4138d5b0d436c083e2bb8bfaab6d66f4251bff11))
+
 ## [0.1.1](https://github.com/smarlhens/whittle/compare/v0.1.0...v0.1.1) (2026-05-22)
 
 ## 0.1.0 (2026-05-22)
