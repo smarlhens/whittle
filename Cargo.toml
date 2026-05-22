@@ -54,6 +54,7 @@ targets = [
     "x86_64-pc-windows-msvc",
 ]
 packages = ["whittle"]
+precise-builds = true
 pr-run-mode = "skip"
 github-release = "auto"
 install-path = "CARGO_HOME"
