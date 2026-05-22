@@ -224,9 +224,6 @@ jobs:
     name: publish
     needs: build
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      id-token: write
     defaults:
       run:
         working-directory: ${{ inputs.crate-dir }}
