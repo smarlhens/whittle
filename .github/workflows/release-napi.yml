@@ -15,6 +15,9 @@ concurrency:
 jobs:
   napi-publish:
     uses: ./.github/workflows/napi.yml
+    permissions:
+      contents: read
+      id-token: write
     with:
       crate-dir: crates/whittle-napi
       app-name: whittle
