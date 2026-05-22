@@ -25,9 +25,7 @@
     "crates/whittle-napi": {
       "package-name": "@smarlhens/whittle",
       "skip-github-release": true,
-      "extra-files": [
-        { "type": "json", "path": "package.json", "jsonpath": "$.version" }
-      ]
+      "extra-files": [{ "type": "json", "path": "package.json", "jsonpath": "$.version" }]
     }
   },
   "plugins": [

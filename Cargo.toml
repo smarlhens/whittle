@@ -36,19 +36,25 @@ lto = "thin"
 codegen-units = 1
 strip = true
 
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
 [workspace.metadata.dist]
 cargo-dist-version = "0.32.0"
 ci = "github"
 installers = ["shell", "powershell"]
 targets = [
-  "x86_64-unknown-linux-gnu",
-  "aarch64-unknown-linux-gnu",
-  "x86_64-unknown-linux-musl",
-  "aarch64-unknown-linux-musl",
-  "x86_64-apple-darwin",
-  "aarch64-apple-darwin",
-  "x86_64-pc-windows-msvc",
+    "aarch64-apple-darwin",
+    "aarch64-unknown-linux-gnu",
+    "aarch64-unknown-linux-musl",
+    "x86_64-apple-darwin",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "x86_64-pc-windows-msvc",
 ]
 packages = ["whittle"]
 pr-run-mode = "skip"
 github-release = "auto"
+install-path = "CARGO_HOME"
+install-updater = false

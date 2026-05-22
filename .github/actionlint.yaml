@@ -1,4 +1,4 @@
 paths:
   ".github/workflows/release.yml":
     ignore:
-      - 'shellcheck reported issue'
+      - "shellcheck reported issue"
