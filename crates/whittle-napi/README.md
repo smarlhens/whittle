@@ -39,15 +39,15 @@ npx whittle --config whittle.toml fix .git/COMMIT_EDITMSG
 
 ## Supported platforms
 
-| OS      | Arch          | libc      |
-|---------|---------------|-----------|
-| macOS   | x64 (Intel)   | n/a       |
-| macOS   | arm64 (M1+)   | n/a       |
-| Linux   | x64           | glibc     |
-| Linux   | x64           | musl      |
-| Linux   | arm64         | glibc     |
-| Linux   | arm64         | musl      |
-| Windows | x64           | n/a       |
+| OS      | Arch        | libc  |
+| ------- | ----------- | ----- |
+| macOS   | x64 (Intel) | n/a   |
+| macOS   | arm64 (M1+) | n/a   |
+| Linux   | x64         | glibc |
+| Linux   | x64         | musl  |
+| Linux   | arm64       | glibc |
+| Linux   | arm64       | musl  |
+| Windows | x64         | n/a   |
 
 ## License
 

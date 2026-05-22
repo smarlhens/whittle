@@ -18,14 +18,14 @@
     "prek",
     "rust"
   ],
+  "homepage": "https://github.com/smarlhens/whittle#readme",
+  "bugs": "https://github.com/smarlhens/whittle/issues",
   "license": "BlueOak-1.0.0",
   "author": "Samuel MARLHENS <samuel.marlhens@proton.me>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/smarlhens/whittle.git"
   },
-  "homepage": "https://github.com/smarlhens/whittle#readme",
-  "bugs": "https://github.com/smarlhens/whittle/issues",
   "bin": {
     "whittle": "bin/whittle.js"
   },

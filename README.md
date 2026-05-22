@@ -70,13 +70,13 @@ whittle fix "$1"
 
 Out of the box, `whittle-fix` applies these transforms to the commit subject:
 
-| Component | Transform |
-|-----------|-----------|
-| type | lowercase |
-| scope | lowercase, `/` → `-`, `\` → `-` |
+| Component   | Transform                                                                                                                                                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| type        | lowercase                                                                                                                                                                                                                                         |
+| scope       | lowercase, `/` → `-`, `\` → `-`                                                                                                                                                                                                                   |
 | description | lowercase, `and` → `&`, normalize smart quotes (`“ ” ‘ ’` → `" '`), em/en dashes (`— –`) → `-`, collapse runs of `!` or `?`, strip `/ \ [ ] { }`, strip standalone dots (keep version dots like `1.2.3`), strip trailing dot, collapse whitespace |
-| body | dropped |
-| footers | dropped (denies `Co-Authored-By` and `Co-authored-by` by default) |
+| body        | dropped                                                                                                                                                                                                                                           |
+| footers     | dropped (denies `Co-Authored-By` and `Co-authored-by` by default)                                                                                                                                                                                 |
 
 Validation rules:
 

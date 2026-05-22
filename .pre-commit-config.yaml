@@ -19,6 +19,17 @@ repos:
     hooks:
       - id: actionlint
 
+  - repo: https://github.com/oxc-project/mirrors-oxfmt
+    rev: "v0.51.0"
+    hooks:
+      - id: oxfmt
+        types_or: [javascript, ts, json, json5, yaml, markdown, toml]
+
+  - repo: https://github.com/oxc-project/mirrors-oxlint
+    rev: "v1.66.0"
+    hooks:
+      - id: oxlint
+
   - repo: local
     hooks:
       - id: fmt

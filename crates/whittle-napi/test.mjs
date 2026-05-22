@@ -1,16 +1,14 @@
 import { strict as assert } from 'node:assert';
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const nodeFile = readdirSync(__dirname).find(
-  f => f.startsWith('whittle.') && f.endsWith('.node'),
-);
+const nodeFile = readdirSync(__dirname).find(f => f.startsWith('whittle.') && f.endsWith('.node'));
 if (!nodeFile) {
   console.error('No .node binary found. Run `npx napi build --platform` first.');
   process.exit(1);
