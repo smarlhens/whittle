@@ -1,16 +1,16 @@
 name: release-napi
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [created]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   napi-publish:
