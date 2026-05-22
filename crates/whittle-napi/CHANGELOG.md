@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/smarlhens/whittle/compare/v0.1.0...v0.1.1) (2026-05-22)
+
+
+### Bug Fixes
+
+* add cargo dist profile & wire oxfmt + oxlint ([8eb321c](https://github.com/smarlhens/whittle/commit/8eb321cbd08de66cb0d8f19a89d4524856587f80))
+
 ## 0.1.0 (2026-05-22)
 
 
