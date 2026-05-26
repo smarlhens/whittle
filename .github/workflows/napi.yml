@@ -237,7 +237,6 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: ${{ inputs.crate-dir }}/.nvmrc
-          registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
         run: npm ci
