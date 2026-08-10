@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/smarlhens/whittle/compare/v0.1.2...v0.1.3) (2026-08-10)
+
+
+### Build System
+
+* **deps:** bump npm & pre-commit dependencies ([220574f](https://github.com/smarlhens/whittle/commit/220574fe2fe9e4f77cb63b17d3d746b8cac9e75c))
+
 ## [0.1.2](https://github.com/smarlhens/whittle/compare/v0.1.1...v0.1.2) (2026-05-22)
 
 
