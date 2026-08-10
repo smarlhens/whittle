@@ -61,12 +61,12 @@ jobs:
         working-directory: ${{ inputs.crate-dir }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: ${{ inputs.crate-dir }}/.nvmrc
           cache: npm
@@ -142,12 +142,12 @@ jobs:
         working-directory: ${{ inputs.crate-dir }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: ${{ inputs.crate-dir }}/.nvmrc
           architecture: ${{ matrix.settings.architecture }}
@@ -177,7 +177,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -229,13 +229,13 @@ jobs:
         working-directory: ${{ inputs.crate-dir }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       # node 24 required: OIDC trusted publishing requires node >=22.14.0 and npm >=11.5.1
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
