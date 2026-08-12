@@ -59,3 +59,10 @@ repos:
         entry: cargo run --quiet --release -p whittle --bin whittle -- fix
         language: rust
         stages: [commit-msg]
+      - id: readme-check
+        name: README matches README.md.tera
+        description: README.md is generated from live command output; regenerate with `cargo run -p xtask`.
+        entry: cargo run --quiet -p xtask -- --check
+        language: rust
+        types_or: [rust, markdown]
+        pass_filenames: false
