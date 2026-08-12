@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.3](https://github.com/smarlhens/whittle/compare/v0.1.2...v0.1.3) (2026-08-12)
+
+
+### Build System
+
+* **deps:** bump npm & pre-commit dependencies ([220574f](https://github.com/smarlhens/whittle/commit/220574fe2fe9e4f77cb63b17d3d746b8cac9e75c))
+
+
+### Chores
+
+* release main ([1c8116a](https://github.com/smarlhens/whittle/commit/1c8116a75538160e7a5f213fe7b38ec450f931b0))
+* repair release-please manifest & exclude xtask ([3046f43](https://github.com/smarlhens/whittle/commit/3046f4358112c094fb5e50916c5505c8b7a75437))
+
 ## [0.1.2](https://github.com/smarlhens/whittle/compare/v0.1.1...v0.1.2) (2026-05-22)
 
 
