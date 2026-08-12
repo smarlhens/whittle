@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/smarlhens/whittle/compare/v0.2.0...v0.2.1) (2026-08-12)
+
+
+### Bug Fixes
+
+* stop release-please from racing cargo-dist's github release ([df77108](https://github.com/smarlhens/whittle/commit/df77108e0d394f3ccffbd26e0b9936bea77527a7))
+
 ## [0.2.0](https://github.com/smarlhens/whittle/compare/v0.1.2...v0.2.0) (2026-08-12)
 
 
