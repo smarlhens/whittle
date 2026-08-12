@@ -190,21 +190,7 @@ message has no way to learn the rules from a silent rewrite — and a dropped
 
 ```console
 $ whittle check .git/COMMIT_EDITMSG
-whittle[description.chars-stripped]: description: "restore actions/checkout@v6 in dist-generated release.yml" -> "restore actionscheckout@v6 in dist-generated release.yml"
-whittle[description.dots-stripped]: description: "restore actionscheckout@v6 in dist-generated release.yml" -> "restore actionscheckout@v6 in dist-generated releaseyml"
-whittle[body.dropped]: body would be removed (2 lines)
-whittle[footers.dropped]: all footers would be removed (1)
-whittle[subject.needs-rewording]: `actions/checkout@v6` would become `actionscheckout@v6` — reword it instead
-whittle[subject.needs-rewording]: `release.yml` would become `releaseyml` — reword it instead
-
-how to write a message whittle accepts:
-  - do not use these characters in the description: `/` `\` `[` `]` `{` `}`
-  - use `.` only between digits, as in `1.2.3`, and never at the end of the subject — write file names without their extension, e.g. `release workflow` not `release.yml`
-  - the body is discarded — put everything that matters in the subject line
-  - all footers are discarded, including `Co-Authored-By` — do not rely on trailers
-  - say the same thing in words rather than symbols: name the thing, do not paste its path, filename or package spec
-
-full ruleset: whittle rules
+{{ whittle(cmd="check", input="ci: restore actions/checkout@v6 in dist-generated release.yml\n\nWhy this matters.\nMore lines.\n\nCo-Authored-By: A <a@b>\n") }}
 ```
 
 No `suggested message` here, because normalizing this subject would weld
@@ -235,16 +221,7 @@ refuses to offer it. It names each ruined token and asks for a rewording instead
 
 ```console
 $ whittle check .git/COMMIT_EDITMSG
-whittle[description.chars-stripped]: description: "handle src/lib.rs parse error" -> "handle srclib.rs parse error"
-whittle[description.dots-stripped]: description: "handle srclib.rs parse error" -> "handle srclibrs parse error"
-whittle[subject.needs-rewording]: `src/lib.rs` would become `srclibrs` — reword it instead
-
-how to write a message whittle accepts:
-  - do not use these characters in the description: `/` `\` `[` `]` `{` `}`
-  - use `.` only between digits, as in `1.2.3`, and never at the end of the subject — write file names without their extension, e.g. `release workflow` not `release.yml`
-  - say the same thing in words rather than symbols: name the thing, do not paste its path, filename or package spec
-
-full ruleset: whittle rules
+{{ whittle(cmd="check", input="fix: handle src/lib.rs parse error\n") }}
 ```
 
 No `suggested message` is printed, so an agent cannot shortcut past the problem — it
@@ -289,21 +266,7 @@ To skip the failed first attempt altogether, give the rules to the agent up fron
 
 ```console
 $ whittle rules
-whittle commit message rules:
-  - write the subject as a Conventional Commit: `type(scope): description`
-  - use one of these types: feat, fix, refactor, perf, docs, test, chore, build, ci, style, revert
-  - keep the whole subject line to 72 characters or fewer
-  - write the type in lowercase
-  - write the scope in lowercase
-  - in the scope, `/` becomes `-`, `\` becomes `-` — write the result directly
-  - write the description in lowercase
-  - in the description, the pattern `\band\b` becomes `&`, `“` becomes `"`, `”` becomes `"`, `‘` becomes `'`, `’` becomes `'`, `—` becomes `-`, `–` becomes `-`, the pattern `!{2,}` becomes `!`, the pattern `\?{2,}` becomes `?` — write the result directly
-  - do not use these characters in the description: `/` `\` `[` `]` `{` `}`
-  - use `.` only between digits, as in `1.2.3`, and never at the end of the subject — write file names without their extension, e.g. `release workflow` not `release.yml`
-  - separate words with a single space
-  - no leading or trailing space in the description
-  - the body is discarded — put everything that matters in the subject line
-  - all footers are discarded, including `Co-Authored-By` — do not rely on trailers
+{{ whittle(cmd="rules") }}
 ```
 
 Every line is derived from your `whittle.toml` — including the `replace` tables,
@@ -340,78 +303,7 @@ diagnostic) rather than empty stdout.
 
 ```console
 $ whittle --format json check .git/COMMIT_EDITMSG
-{
-  "version": 1,
-  "mode": "check",
-  "file": ".git/COMMIT_EDITMSG",
-  "ok": false,
-  "original": "Chore: Bump A and B.\n\nbody text",
-  "normalized": "chore: bump a & b",
-  "diagnostics": [
-    {
-      "code": "type.lowercased",
-      "severity": "warning",
-      "kind": "rewrite",
-      "field": "type",
-      "before": "Chore",
-      "after": "chore",
-      "detail": null,
-      "applied": false,
-      "message": "type: \"Chore\" -> \"chore\""
-    },
-    {
-      "code": "description.lowercased",
-      "severity": "warning",
-      "kind": "rewrite",
-      "field": "description",
-      "before": "Bump A and B.",
-      "after": "bump a and b.",
-      "detail": null,
-      "applied": false,
-      "message": "description: \"Bump A and B.\" -> \"bump a and b.\""
-    },
-    {
-      "code": "description.replaced",
-      "severity": "warning",
-      "kind": "rewrite",
-      "field": "description",
-      "before": "bump a and b.",
-      "after": "bump a & b.",
-      "detail": null,
-      "applied": false,
-      "message": "description: \"bump a and b.\" -> \"bump a & b.\""
-    },
-    {
-      "code": "description.dots-stripped",
-      "severity": "warning",
-      "kind": "rewrite",
-      "field": "description",
-      "before": "bump a & b.",
-      "after": "bump a & b",
-      "detail": null,
-      "applied": false,
-      "message": "description: \"bump a & b.\" -> \"bump a & b\""
-    },
-    {
-      "code": "body.dropped",
-      "severity": "warning",
-      "kind": "removal",
-      "field": "body",
-      "before": "body text",
-      "after": null,
-      "detail": "1 line",
-      "applied": false,
-      "message": "body would be removed (1 line)"
-    }
-  ],
-  "guidance": [
-    "write the type in lowercase",
-    "write the description in lowercase",
-    "in the description, `bump a and b.` becomes `bump a & b.` — write the result directly",
-    "use `.` only between digits, as in `1.2.3`, and never at the end of the subject — write file names without their extension, e.g. `release workflow` not `release.yml`",
-    "the body is discarded — put everything that matters in the subject line"
-  ]
-}
+{{ whittle(cmd="check", format="json", input="Chore: Bump A and B.\n\nbody text\n") }}
 ```
 
 Contract:

@@ -1,14 +1,13 @@
 //! Lint diagnostics for parsed conventional commits.
 
 use crate::config::Config;
+use crate::diagnostic::{Diagnostic, Field};
 use crate::transform::CommitParts;
 
-#[derive(Debug, Clone)]
-pub struct Diagnostic {
-    pub code: &'static str,
-    pub message: String,
-}
-
+/// Check `parts` against the configured rules.
+///
+/// Every diagnostic returned is [`crate::diagnostic::Severity::Error`]: unlike a
+/// transform, no rewrite whittle can perform will satisfy these.
 #[must_use]
 pub fn lint(parts: &CommitParts, config: &Config) -> Vec<Diagnostic> {
     let mut out = Vec::new();
@@ -20,25 +19,30 @@ pub fn lint(parts: &CommitParts, config: &Config) -> Vec<Diagnostic> {
             .iter()
             .any(|t| t.eq_ignore_ascii_case(&parts.type_))
     {
-        out.push(Diagnostic {
-            code: "disallowed-type",
-            message: format!(
-                "type `{}` is not in allowed_types ({})",
-                parts.type_,
-                rules.allowed_types.join(", ")
-            ),
-        });
+        let allowed = rules.allowed_types.join(", ");
+        out.push(
+            Diagnostic::error("type.disallowed", Field::Type)
+                .removing(&parts.type_)
+                .detail(allowed.clone())
+                .message_override(format!(
+                    "type `{}` is not in allowed_types ({allowed})",
+                    parts.type_
+                )),
+        );
     }
 
-    let subject_len = parts.subject().chars().count();
+    let subject = parts.subject();
+    let subject_len = subject.chars().count();
     if subject_len > rules.max_subject_length {
-        out.push(Diagnostic {
-            code: "subject-too-long",
-            message: format!(
-                "subject is {subject_len} chars; max allowed is {}",
-                rules.max_subject_length
-            ),
-        });
+        out.push(
+            Diagnostic::error("subject.too-long", Field::Subject)
+                .removing(&subject)
+                .detail(format!("{subject_len}/{}", rules.max_subject_length))
+                .message_override(format!(
+                    "subject is {subject_len} chars; max allowed is {}",
+                    rules.max_subject_length
+                )),
+        );
     }
 
     out
@@ -67,7 +71,7 @@ mod tests {
         let p = parse("wip: hack");
         let diags = lint(&p, &Config::default());
         assert_eq!(diags.len(), 1);
-        assert_eq!(diags[0].code, "disallowed-type");
+        assert_eq!(diags[0].code, "type.disallowed");
     }
 
     #[test]
@@ -76,7 +80,7 @@ mod tests {
         cfg.rules.allowed_types = vec![];
         let p = parse("wip: hack");
         let diags = lint(&p, &cfg);
-        assert!(diags.iter().all(|d| d.code != "disallowed-type"));
+        assert!(diags.iter().all(|d| d.code != "type.disallowed"));
     }
 
     #[test]
@@ -102,7 +106,7 @@ mod tests {
         let raw = format!("feat: {desc}");
         let p = parse(&raw);
         let diags = lint(&p, &Config::default());
-        assert!(diags.iter().any(|d| d.code == "subject-too-long"));
+        assert!(diags.iter().any(|d| d.code == "subject.too-long"));
     }
 
     #[test]
@@ -124,7 +128,7 @@ mod tests {
         let p = parse("feat: too long for sure");
         let diags = lint(&p, &cfg);
         let codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
-        assert!(codes.contains(&"disallowed-type"));
-        assert!(codes.contains(&"subject-too-long"));
+        assert!(codes.contains(&"type.disallowed"));
+        assert!(codes.contains(&"subject.too-long"));
     }
 }

@@ -1,10 +1,13 @@
 //! Whittle configuration: TOML-driven rules for subject normalization + linting.
 
+use anyhow::Context;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
+    #[serde(default, rename = "type")]
+    pub type_: TypeConfig,
     #[serde(default)]
     pub scope: ScopeConfig,
     #[serde(default)]
@@ -15,6 +18,18 @@ pub struct Config {
     pub footers: FootersConfig,
     #[serde(default)]
     pub rules: RulesConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct TypeConfig {
+    pub lowercase: bool,
+}
+
+impl Default for TypeConfig {
+    fn default() -> Self {
+        Self { lowercase: true }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -186,9 +201,29 @@ impl Default for RulesConfig {
 
 impl Config {
     /// # Errors
-    /// Returns an error if `text` is not valid TOML or does not match the `Config` schema.
+    /// Returns an error if `text` is not valid TOML, does not match the
+    /// `Config` schema, or configures a `replace` rule whose `regex = true`
+    /// pattern does not compile.
+    ///
+    /// A rule that fails to compile is not merely inert: `apply_replace`
+    /// silently returns the input unchanged for it, so without this check a
+    /// typo'd pattern would be advertised to every caller of `whittle rules`
+    /// as an enforced rule while doing nothing at all.
     pub fn from_toml(text: &str) -> anyhow::Result<Self> {
-        Ok(toml::from_str(text)?)
+        let config: Self = toml::from_str(text)?;
+        for (field, rules) in [
+            ("scope", &config.scope.replace),
+            ("description", &config.description.replace),
+        ] {
+            for r in rules {
+                if r.regex {
+                    regex::Regex::new(&r.from).with_context(|| {
+                        format!("invalid regex in [{field}].replace: `{}`", r.from)
+                    })?;
+                }
+            }
+        }
+        Ok(config)
     }
 
     /// # Errors
@@ -207,8 +242,32 @@ mod tests {
     use super::*;
 
     #[test]
+    fn invalid_description_replace_regex_is_rejected_at_load() {
+        let res = Config::from_toml(
+            "[description]\nreplace = [{ from = \"(unclosed\", to = \"x\", regex = true }]\n",
+        );
+        assert!(res.is_err(), "an unparseable pattern must fail to load");
+    }
+
+    #[test]
+    fn invalid_scope_replace_regex_is_rejected_at_load() {
+        let res =
+            Config::from_toml("[scope]\nreplace = [{ from = \"[\", to = \"x\", regex = true }]\n");
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn a_literal_replace_rule_is_never_regex_checked() {
+        // regex = false (the default) means `from` is a literal string, so an
+        // unbalanced bracket there is not a regex error.
+        let res = Config::from_toml("[description]\nreplace = [{ from = \"[\", to = \"x\" }]\n");
+        assert!(res.is_ok());
+    }
+
+    #[test]
     fn defaults_match_python_script_behavior() {
         let c = Config::default();
+        assert!(c.type_.lowercase);
         assert!(c.scope.lowercase);
         assert_eq!(c.scope.replace.len(), 2);
         assert!(c.scope.replace.iter().any(|r| r.from == "/" && r.to == "-"));
@@ -310,6 +369,13 @@ replace = [
             c.rules.allowed_types,
             vec!["feat".to_string(), "fix".to_string()]
         );
+    }
+
+    #[test]
+    fn type_lowercase_parses_independently_of_scope() {
+        let c = Config::from_toml("[type]\nlowercase = false\n").unwrap();
+        assert!(!c.type_.lowercase);
+        assert!(c.scope.lowercase, "scope default preserved");
     }
 
     #[test]

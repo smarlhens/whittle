@@ -1,6 +1,7 @@
 //! Transform engine: applies normalization rules to a parsed Conventional Commit.
 
 use crate::config::{Config, InternalDots, Replace, TrailingDot};
+use crate::diagnostic::{Diagnostic, Field};
 use regex::Regex;
 
 #[derive(Debug, Clone)]
@@ -18,6 +19,20 @@ pub struct Footer {
     pub token: String,
     pub separator: String,
     pub value: String,
+}
+
+impl Footer {
+    /// `git_conventional` gives a bare separator + trimmed value; whitespace
+    /// must be reinstated or the line stops being a git trailer. Its ref
+    /// separator is `" #"` (leading space) — compare trimmed, not `"#"`.
+    #[must_use]
+    pub fn render(&self) -> String {
+        if self.separator.trim() == "#" {
+            format!("{} #{}", self.token, self.value)
+        } else {
+            format!("{}{} {}", self.token, self.separator.trim(), self.value)
+        }
+    }
 }
 
 impl CommitParts {
@@ -67,9 +82,7 @@ impl CommitParts {
                 if i > 0 {
                     out.push('\n');
                 }
-                out.push_str(&f.token);
-                out.push_str(&f.separator);
-                out.push_str(&f.value);
+                out.push_str(&f.render());
             }
         }
         out
@@ -92,80 +105,202 @@ impl CommitParts {
     }
 }
 
-pub fn transform(parts: &mut CommitParts, config: &Config) {
-    transform_scope(parts, config);
-    transform_description(parts, config);
-    transform_body(parts, config);
-    transform_footers(parts, config);
+/// Applies every configured normalization, reporting each rewrite (pending —
+/// see [`Diagnostic::mark_applied`]).
+#[must_use]
+pub fn transform(parts: &mut CommitParts, config: &Config) -> Vec<Diagnostic> {
+    let mut diags = Vec::new();
+    transform_type(parts, config, &mut diags);
+    transform_scope(parts, config, &mut diags);
+    transform_description(parts, config, &mut diags);
+    transform_body(parts, config, &mut diags);
+    transform_footers(parts, config, &mut diags);
+    diags
 }
 
-fn transform_scope(parts: &mut CommitParts, config: &Config) {
+/// Record `code` if `step` changed `value`, then keep the new value.
+fn step(
+    value: &mut String,
+    code: &'static str,
+    field: Field,
+    diags: &mut Vec<Diagnostic>,
+    step: impl FnOnce(&str) -> String,
+) {
+    let next = step(value);
+    if next != *value {
+        diags.push(Diagnostic::transform(code, field).rewrite(value, &next));
+        *value = next;
+    }
+}
+
+fn transform_type(parts: &mut CommitParts, config: &Config, diags: &mut Vec<Diagnostic>) {
+    if config.type_.lowercase {
+        step(
+            &mut parts.type_,
+            "type.lowercased",
+            Field::Type,
+            diags,
+            str::to_lowercase,
+        );
+    }
+}
+
+fn transform_scope(parts: &mut CommitParts, config: &Config, diags: &mut Vec<Diagnostic>) {
     let Some(scope) = parts.scope.as_mut() else {
         return;
     };
     if config.scope.lowercase {
-        *scope = scope.to_lowercase();
+        step(
+            scope,
+            "scope.lowercased",
+            Field::Scope,
+            diags,
+            str::to_lowercase,
+        );
     }
     for r in &config.scope.replace {
-        *scope = apply_replace(scope, r);
+        step(scope, "scope.replaced", Field::Scope, diags, |s| {
+            apply_replace(s, r)
+        });
     }
 }
 
-fn transform_description(parts: &mut CommitParts, config: &Config) {
+fn transform_description(parts: &mut CommitParts, config: &Config, diags: &mut Vec<Diagnostic>) {
     let cfg = &config.description;
     let mut d = parts.description.clone();
 
     if cfg.lowercase {
-        d = d.to_lowercase();
+        step(
+            &mut d,
+            "description.lowercased",
+            Field::Description,
+            diags,
+            str::to_lowercase,
+        );
     }
     for r in &cfg.replace {
-        d = apply_replace(&d, r);
+        step(
+            &mut d,
+            "description.replaced",
+            Field::Description,
+            diags,
+            |s| apply_replace(s, r),
+        );
     }
     if !cfg.strip_chars.is_empty() {
-        d = d.chars().filter(|c| !cfg.strip_chars.contains(c)).collect();
+        step(
+            &mut d,
+            "description.chars-stripped",
+            Field::Description,
+            diags,
+            |s| s.chars().filter(|c| !cfg.strip_chars.contains(c)).collect(),
+        );
     }
     match cfg.internal_dots {
-        InternalDots::All => {
-            // dots already handled in trailing step below; here keep all
-        }
+        InternalDots::All => {}
         InternalDots::None => {
-            d = d.replace('.', "");
+            step(
+                &mut d,
+                "description.dots-stripped",
+                Field::Description,
+                diags,
+                |s| s.replace('.', ""),
+            );
         }
         InternalDots::KeepInNumbers => {
-            d = strip_dots_outside_numbers(&d);
+            step(
+                &mut d,
+                "description.dots-stripped",
+                Field::Description,
+                diags,
+                strip_dots_outside_numbers,
+            );
         }
     }
     if cfg.trailing_dot == TrailingDot::Strip {
-        d = strip_trailing_dots(&d);
+        step(
+            &mut d,
+            "description.trailing-dot",
+            Field::Description,
+            diags,
+            strip_trailing_dots,
+        );
     }
     if cfg.collapse_whitespace {
-        d = collapse_whitespace(&d);
+        step(
+            &mut d,
+            "description.whitespace-collapsed",
+            Field::Description,
+            diags,
+            collapse_whitespace,
+        );
     }
-    parts.description = d.trim().to_string();
-
-    if config.scope.lowercase {
-        parts.type_ = parts.type_.to_lowercase();
-    }
+    step(
+        &mut d,
+        "description.trimmed",
+        Field::Description,
+        diags,
+        |s| s.trim().to_string(),
+    );
+    parts.description = d;
 }
 
-fn transform_body(parts: &mut CommitParts, config: &Config) {
-    if !config.body.keep {
-        parts.body = None;
+fn transform_body(parts: &mut CommitParts, config: &Config, diags: &mut Vec<Diagnostic>) {
+    if config.body.keep {
+        return;
     }
+    let Some(body) = parts.body.take() else {
+        return;
+    };
+    if body.trim().is_empty() {
+        return;
+    }
+    let lines = body.lines().count();
+    let plural = if lines == 1 { "line" } else { "lines" };
+    diags.push(
+        Diagnostic::transform("body.dropped", Field::Body)
+            .removing(&body)
+            .detail(format!("{lines} {plural}")),
+    );
 }
 
-fn transform_footers(parts: &mut CommitParts, config: &Config) {
+fn transform_footers(parts: &mut CommitParts, config: &Config, diags: &mut Vec<Diagnostic>) {
     if !config.footers.keep {
-        parts.footers.clear();
+        if !parts.footers.is_empty() {
+            let rendered = render_footers(&parts.footers);
+            let count = parts.footers.len();
+            diags.push(
+                Diagnostic::transform("footers.dropped", Field::Footers)
+                    .removing(&rendered)
+                    .detail(count.to_string()),
+            );
+            parts.footers.clear();
+        }
         return;
     }
     parts.footers.retain(|f| {
-        !config
+        let denied = config
             .footers
             .deny
             .iter()
-            .any(|d| d.eq_ignore_ascii_case(&f.token))
+            .any(|d| d.eq_ignore_ascii_case(&f.token));
+        if denied {
+            diags.push(
+                Diagnostic::transform("footer.denied", Field::Footers)
+                    .removing(&f.render())
+                    .detail(f.token.clone()),
+            );
+        }
+        !denied
     });
+}
+
+fn render_footers(footers: &[Footer]) -> String {
+    footers
+        .iter()
+        .map(Footer::render)
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn apply_replace(input: &str, r: &Replace) -> String {
@@ -188,17 +323,12 @@ fn strip_trailing_dots(s: &str) -> String {
     s.trim_end_matches('.').to_string()
 }
 
-fn strip_dots_outside_numbers(s: &str) -> String {
-    // Strip `.` unless both neighbours are ASCII digits.
+pub(crate) fn strip_dots_outside_numbers(s: &str) -> String {
     let chars: Vec<char> = s.chars().collect();
     let mut out = String::with_capacity(s.len());
     for (i, ch) in chars.iter().enumerate() {
         if *ch == '.' {
-            let prev = i.checked_sub(1).and_then(|j| chars.get(j));
-            let next = chars.get(i + 1);
-            let between_digits = matches!(prev, Some(c) if c.is_ascii_digit())
-                && matches!(next, Some(c) if c.is_ascii_digit());
-            if between_digits {
+            if is_dot_between_digits(&chars, i) {
                 out.push('.');
             }
         } else {
@@ -206,6 +336,13 @@ fn strip_dots_outside_numbers(s: &str) -> String {
         }
     }
     out
+}
+
+/// `pub(crate)`: `guidance::mangled_description` reuses this exact rule.
+pub(crate) fn is_dot_between_digits(chars: &[char], i: usize) -> bool {
+    let prev = i.checked_sub(1).and_then(|j| chars.get(j));
+    let next = chars.get(i + 1);
+    matches!(prev, Some(c) if c.is_ascii_digit()) && matches!(next, Some(c) if c.is_ascii_digit())
 }
 
 #[cfg(test)]
@@ -220,7 +357,7 @@ mod tests {
 
     fn fix(raw: &str) -> String {
         let mut parts = CommitParts::parse(raw).expect("parse");
-        transform(&mut parts, &defaults());
+        let _diags = transform(&mut parts, &defaults());
         parts.render()
     }
 
@@ -261,7 +398,6 @@ mod tests {
 
     #[test]
     fn strip_dots_outside_numbers_strips_digit_then_letter() {
-        // `0.x` -> 0 then `.` then letter — neighbour not digit on right side
         assert_eq!(strip_dots_outside_numbers("v0.x"), "v0x");
     }
 
@@ -295,6 +431,123 @@ mod tests {
             regex: true,
         };
         assert_eq!(apply_replace("hello", &r), "hello");
+    }
+
+    #[test]
+    fn footer_render_reinstates_space_after_colon() {
+        let f = Footer {
+            token: "Co-Authored-By".into(),
+            separator: ":".into(),
+            value: "Claude <a@b>".into(),
+        };
+        assert_eq!(f.render(), "Co-Authored-By: Claude <a@b>");
+    }
+
+    #[test]
+    fn footer_render_keeps_hash_separator_style() {
+        let p = CommitParts::parse("feat: x\n\nRefs #12").unwrap();
+        let f = p.footers.first().expect("one footer");
+        assert_eq!(f.separator, " #", "parser separator shape changed");
+        assert_eq!(f.render(), "Refs #12");
+    }
+
+    #[test]
+    fn ref_style_footers_survive_a_keep_round_trip() {
+        let raw = "feat: x\n\nbody\n\nCloses #128\nRefs #12";
+        let mut cfg = Config::default();
+        cfg.body.keep = true;
+        cfg.footers.keep = true;
+        cfg.footers.deny = vec![];
+        let mut p = CommitParts::parse(raw).unwrap();
+        let _diags = transform(&mut p, &cfg);
+        let out = p.render();
+        assert!(out.contains("Closes #128"), "got: {out}");
+        assert!(out.contains("Refs #12"), "got: {out}");
+        assert!(!out.contains("# 12"), "extra space injected: {out}");
+    }
+
+    #[test]
+    fn denied_footer_diagnostic_quotes_a_valid_trailer() {
+        let raw = "feat: x\n\nCo-Authored-By: Claude <a@b>";
+        let mut cfg = Config::default();
+        cfg.footers.keep = true;
+        let mut p = CommitParts::parse(raw).unwrap();
+        let diags = transform(&mut p, &cfg);
+        let d = diags
+            .iter()
+            .find(|d| d.code == "footer.denied")
+            .expect("footer.denied");
+        assert_eq!(d.before.as_deref(), Some("Co-Authored-By: Claude <a@b>"));
+        assert_eq!(d.detail.as_deref(), Some("Co-Authored-By"));
+    }
+
+    #[test]
+    fn dropped_footers_diagnostic_quotes_valid_trailers() {
+        let raw = "feat: x\n\nCo-Authored-By: Claude <a@b>\nRefs: #12";
+        let mut p = CommitParts::parse(raw).unwrap();
+        let diags = transform(&mut p, &defaults());
+        let d = diags
+            .iter()
+            .find(|d| d.code == "footers.dropped")
+            .expect("footers.dropped");
+        assert_eq!(
+            d.before.as_deref(),
+            Some("Co-Authored-By: Claude <a@b>\nRefs: #12")
+        );
+    }
+
+    #[test]
+    fn kept_footers_round_trip_as_valid_trailers() {
+        let raw = "feat: x\n\nbody\n\nCo-Authored-By: Claude <a@b>\nRefs: #12";
+        let mut cfg = Config::default();
+        cfg.body.keep = true;
+        cfg.footers.keep = true;
+        cfg.footers.deny = vec![];
+        let mut p = CommitParts::parse(raw).unwrap();
+        let _diags = transform(&mut p, &cfg);
+        let out = p.render();
+        assert!(out.contains("Co-Authored-By: Claude <a@b>"), "got: {out}");
+        assert!(out.contains("Refs: #12"), "got: {out}");
+    }
+
+    #[test]
+    fn empty_body_produces_no_dropped_diagnostic() {
+        let raw = "feat: x\n\n \n\nRefs: #1";
+        let mut p = CommitParts::parse(raw).unwrap();
+        let diags = transform(&mut p, &defaults());
+        assert!(
+            !diags.iter().any(|d| d.code == "body.dropped"),
+            "whitespace-only body has nothing to report as removed"
+        );
+    }
+
+    #[test]
+    fn type_lowercasing_is_independent_of_scope_lowercasing() {
+        let mut cfg = Config::default();
+        cfg.scope.lowercase = false;
+        let mut p = CommitParts::parse("Chore(API): Bump Thing").unwrap();
+        let diags = transform(&mut p, &cfg);
+        assert_eq!(p.type_, "chore");
+        assert_eq!(p.scope.as_deref(), Some("API"));
+        assert!(diags.iter().any(|d| d.code == "type.lowercased"));
+    }
+
+    #[test]
+    fn type_lowercasing_can_be_disabled_on_its_own() {
+        let mut cfg = Config::default();
+        cfg.type_.lowercase = false;
+        let mut p = CommitParts::parse("Chore: Bump Thing").unwrap();
+        let diags = transform(&mut p, &cfg);
+        assert_eq!(p.type_, "Chore");
+        assert!(!diags.iter().any(|d| d.code == "type.lowercased"));
+    }
+
+    #[test]
+    fn type_diagnostic_precedes_description_diagnostics() {
+        let mut p = CommitParts::parse("Chore: Bump Thing").unwrap();
+        let diags = transform(&mut p, &defaults());
+        let first = diags.first().expect("at least one diagnostic");
+        assert_eq!(first.code, "type.lowercased");
     }
 
     #[test]
@@ -434,7 +687,7 @@ mod tests {
         let mut cfg = Config::default();
         cfg.body.keep = true;
         let mut p = CommitParts::parse("feat: x\n\nbody text").unwrap();
-        transform(&mut p, &cfg);
+        let _diags = transform(&mut p, &cfg);
         assert!(p.render().contains("body text"));
     }
 
@@ -445,7 +698,7 @@ mod tests {
         cfg.footers.deny = vec!["Co-Authored-By".into()];
         let raw = "feat: x\n\nbody\n\nCo-Authored-By: a <a@x>\nRefs: #1";
         let mut p = CommitParts::parse(raw).unwrap();
-        transform(&mut p, &cfg);
+        let _diags = transform(&mut p, &cfg);
         let rendered = p.render();
         assert!(!rendered.contains("Co-Authored-By"));
         assert!(rendered.contains("Refs"));
@@ -458,7 +711,7 @@ mod tests {
         cfg.footers.deny = vec!["co-authored-by".into()];
         let raw = "feat: x\n\nbody\n\nCo-Authored-By: a <a@x>";
         let mut p = CommitParts::parse(raw).unwrap();
-        transform(&mut p, &cfg);
+        let _diags = transform(&mut p, &cfg);
         assert!(!p.render().contains("Co-Authored-By"));
     }
 
@@ -491,7 +744,7 @@ mod tests {
         let mut cfg = Config::default();
         cfg.description.internal_dots = InternalDots::None;
         let mut p = CommitParts::parse("chore: bump 1.2.3").unwrap();
-        transform(&mut p, &cfg);
+        let _diags = transform(&mut p, &cfg);
         assert_eq!(p.description, "bump 123");
     }
 
@@ -499,10 +752,9 @@ mod tests {
     fn transform_trailing_dot_keep() {
         let mut cfg = Config::default();
         cfg.description.trailing_dot = TrailingDot::Keep;
-        // disable internal dot stripping so trailing isn't removed via that path
         cfg.description.internal_dots = InternalDots::All;
         let mut p = CommitParts::parse("chore: foo.").unwrap();
-        transform(&mut p, &cfg);
+        let _diags = transform(&mut p, &cfg);
         assert_eq!(p.description, "foo.");
     }
 
@@ -512,8 +764,7 @@ mod tests {
         cfg.description.lowercase = false;
         cfg.scope.lowercase = false;
         let mut p = CommitParts::parse("Fix(API): Handle Null").unwrap();
-        transform(&mut p, &cfg);
-        // type is only lowercased when scope.lowercase is true (current impl)
+        let _diags = transform(&mut p, &cfg);
         assert_eq!(p.scope.as_deref(), Some("API"));
         assert_eq!(p.description, "Handle Null");
     }
@@ -534,8 +785,7 @@ mod tests {
             },
         ];
         let mut p = CommitParts::parse("fix: foo here").unwrap();
-        transform(&mut p, &cfg);
-        // replacements run in order; second sees output of first
+        let _diags = transform(&mut p, &cfg);
         assert_eq!(p.description, "bar here");
     }
 
@@ -544,7 +794,7 @@ mod tests {
         let mut cfg = Config::default();
         cfg.description.strip_chars = vec![];
         let mut p = CommitParts::parse("fix: [keep] /these\\").unwrap();
-        transform(&mut p, &cfg);
+        let _diags = transform(&mut p, &cfg);
         assert!(p.description.contains('['));
         assert!(p.description.contains('/'));
     }
@@ -560,7 +810,7 @@ mod tests {
         let out1 = fix("Chore: Bump A and B.");
         let out2 = {
             let mut p = CommitParts::parse(&out1).unwrap();
-            transform(&mut p, &defaults());
+            let _diags = transform(&mut p, &defaults());
             p.render()
         };
         assert_eq!(out1, out2);

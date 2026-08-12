@@ -8,8 +8,11 @@
   minimum_pre_commit_version: "2.21.0"
 
 - id: whittle-check
-  name: whittle (validate commit subject only)
-  description: Validate the commit message without modifying it.
+  name: whittle (report what would change, never write)
+  description: >
+    Report every rewrite whittle would apply plus any rule violation, print the
+    normalized message, and fail without modifying the file. Use this instead of
+    whittle-fix when an agent or human should own the wording.
   entry: whittle check
   language: rust
   stages: [commit-msg]
