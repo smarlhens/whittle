@@ -20,7 +20,8 @@
   "packages": {
     "crates/whittle": {
       "package-name": "whittle",
-      "changelog-path": "CHANGELOG.md"
+      "changelog-path": "CHANGELOG.md",
+      "skip-github-release": true
     },
     "crates/whittle-napi": {
       "package-name": "@smarlhens/whittle",
