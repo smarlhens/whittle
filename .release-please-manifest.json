@@ -1,5 +1,5 @@
 {
-  "crates/whittle": "0.2.1",
-  "crates/whittle-napi": "0.2.1",
-  "crates/xtask": "0.1.0"
+  "crates/whittle": "0.3.0",
+  "crates/whittle-napi": "0.3.0",
+  "crates/xtask": "0.2.0"
 }
