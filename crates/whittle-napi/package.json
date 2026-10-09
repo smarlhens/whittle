@@ -48,7 +48,7 @@
     "version": "napi version"
   },
   "devDependencies": {
-    "@napi-rs/cli": "3.8.5"
+    "@napi-rs/cli": "3.10.8"
   },
   "napi": {
     "binaryName": "whittle",
