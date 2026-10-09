@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   prek:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout source code
         uses: actions/checkout@v7
@@ -33,9 +33,9 @@ jobs:
         with:
           prefix-key: prek
       - name: Run prek hooks
-        uses: j178/prek-action@v3.0.0
+        uses: j178/prek-action@v3.0.1
         with:
-          prek-version: "0.4.13"
+          prek-version: "v0.5.5"
 
   rust:
     strategy:
